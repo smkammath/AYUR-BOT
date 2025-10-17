@@ -1,14 +1,15 @@
 // netlify/functions/ayurbot.js
-// AYUR-BOT (Final Gemini AI Studio Version)
-// ✅ Tested for keys created in Google AI Studio (https://aistudio.google.com)
+// AYUR-BOT — Google Gemini AI Studio (Final, verified 2025 build)
 
-async function handler(event) {
+import fetch from "node-fetch"; // Force server-side fetch import
+
+export async function handler(event) {
   try {
     const { message } = JSON.parse(event.body || "{}");
     if (!message) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: "Missing message input." })
+        body: JSON.stringify({ error: "Missing message." }),
       };
     }
 
@@ -16,27 +17,25 @@ async function handler(event) {
     if (!GEMINI_API_KEY) {
       return {
         statusCode: 500,
-        body: JSON.stringify({
-          error: "GEMINI_API_KEY missing in environment variables."
-        })
+        body: JSON.stringify({ error: "Missing GEMINI_API_KEY in env." }),
       };
     }
 
-    // 🌿 AyurBot system prompt
+    // 🌿 Prompt template
     const prompt = `
-You are AYUR-BOT 🌿, an intelligent Ayurvedic wellness assistant from India.
-Your role:
-- Suggest safe Ayurvedic and natural remedies for daily health issues.
-- Share yoga, diet, and lifestyle guidance.
-- Mention Indian Ayurvedic hospitals or treatment centers (if asked).
-- Never provide prescriptions or medical treatment plans.
-Always end with: "This is informational only — not medical advice."
+You are AYUR-BOT 🌿, an Indian Ayurvedic wellness guide.
+Respond with practical, factual suggestions about:
+• Daily fitness, diet, yoga and Ayurvedic lifestyle
+• Home remedies for mild issues (like acidity, cold, sleep)
+• Mention respected Indian Ayurvedic centers if asked
+Never prescribe medicine. Always end with:
+"This is informational only — not medical advice."
 
 User question: ${message}
 `;
 
-    // ✅ Correct endpoint for AI Studio keys (v1beta)
-    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+    // ✅ Tested endpoint for AI Studio keys
+    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
 
     const response = await fetch(GEMINI_URL, {
       method: "POST",
@@ -45,51 +44,44 @@ User question: ${message}
         contents: [
           {
             role: "user",
-            parts: [{ text: prompt }]
-          }
-        ]
-      })
+            parts: [{ text: prompt }],
+          },
+        ],
+      }),
     });
 
-    // ❌ Handle API errors gracefully
+    // 🧩 Handle all errors cleanly
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Gemini API error:", errorText);
-
-      if (response.status === 429) {
-        return {
-          statusCode: 200,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            reply:
-              "⚠️ Too many requests to the Gemini server right now. Please wait a bit and try again. Meanwhile, try sipping warm cumin water to calm your system."
-          })
-        };
-      }
-
-      throw new Error(`Gemini API failed: ${response.status}`);
+      const text = await response.text();
+      console.error("Gemini error:", response.status, text);
+      let msg =
+        response.status === 404
+          ? "Gemini endpoint not found. Verify you're using AI Studio (makersuite) key and v1beta URL."
+          : response.status === 429
+          ? "Gemini rate limit hit. Please try again soon."
+          : `Gemini API failed (${response.status}).`;
+      return {
+        statusCode: 200,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reply: `⚠️ ${msg}` }),
+      };
     }
 
     const data = await response.json();
     const reply =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ||
       "No reply generated.";
 
-    // ✅ Return AI reply
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reply })
+      body: JSON.stringify({ reply }),
     };
-  } catch (error) {
-    console.error("AYUR-BOT error:", error);
+  } catch (err) {
+    console.error("AYUR-BOT runtime error:", err);
     return {
       statusCode: 500,
-      body: JSON.stringify({
-        error: error.message || "Unexpected error in AYUR-BOT"
-      })
+      body: JSON.stringify({ error: err.message || "Unknown error" }),
     };
   }
 }
-
-module.exports = { handler };
