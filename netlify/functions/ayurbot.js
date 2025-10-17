@@ -5,6 +5,8 @@ export async function handler(event) {
   try {
     const { message } = JSON.parse(event.body || "{}");
     if (!message) {
+      console.log("DEBUG: OpenAI response raw", JSON.stringify(data, null, 2));
+      console.log("DEBUG: choices", data?.choices);
       return { statusCode: 400, body: "Missing message" };
     }
 
