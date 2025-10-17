@@ -1,79 +1,95 @@
 // netlify/functions/ayurbot.js
-// ✅ CommonJS version (compatible with Netlify default runtime)
+// AYUR-BOT (Gemini API version)
+// Compatible with Netlify Functions (Node.js CommonJS runtime)
 
 async function handler(event) {
   try {
     const { message } = JSON.parse(event.body || "{}");
     if (!message) {
-      return { statusCode: 400, body: "Missing message" };
+      return {
+        statusCode: 400,
+        body: JSON.stringify({ error: "Missing message" })
+      };
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
-    const githubToken = process.env.GITHUB_TOKEN; // optional
-    const repoOwner = "smkammath";
-    const repoName = "AYUR-BOT";
-
-    // 🧘 Wellness prompt
-    const prompt = `
-You are AYUR-BOT, a safe, reliable Indian wellness assistant.
-Provide fitness tips, diet plans, and Ayurvedic insights.
-If asked about treatments, mention traditional options (like Panchakarma) and famous Ayurvedic centers in India.
-Always add: "This is informational only — not medical advice."
-User question: ${message}`;
-
-    // 🧠 Call OpenAI
-    const openAIResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: "You are a factual, health-safe Ayurvedic guide for India." },
-          { role: "user", content: prompt }
-        ],
-        temperature: 0.3,
-        max_tokens: 600
-      })
-    });
-
-    if (!openAIResponse.ok) {
-      const errorText = await openAIResponse.text();
-      console.error("OpenAI API error:", errorText);
-      throw new Error(`OpenAI API failed: ${openAIResponse.status} ${openAIResponse.statusText}`);
-    }
-
-    const data = await openAIResponse.json();
-    const reply = data?.choices?.[0]?.message?.content || "No reply generated.";
-
-    // Optional GitHub logging
-    if (githubToken) {
-      await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/issues`, {
-        method: "POST",
-        headers: {
-          "Authorization": `token ${githubToken}`,
-          "Accept": "application/vnd.github+json",
-          "Content-Type": "application/json"
-        },
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+    if (!GEMINI_API_KEY) {
+      return {
+        statusCode: 500,
         body: JSON.stringify({
-          title: "AYUR-BOT chat log",
-          body: `**User:** ${message}\n\n**Bot:** ${reply}`,
-          labels: ["chat-log"]
+          error: "Missing GEMINI_API_KEY in environment variables."
         })
-      });
+      };
     }
 
+    // 🧘 AYUR-BOT system prompt
+    const prompt = `
+You are AYUR-BOT 🌿, an Ayurvedic wellness assistant from India.
+Provide safe, factual, and culturally relevant responses about:
+- fitness, yoga, diet, lifestyle
+- Ayurvedic treatments (like Panchakarma, Shirodhara)
+- natural remedies using Indian herbs and spices
+- names of reputable Ayurvedic hospitals or therapy centers (if asked)
+Always end with: "This is informational only — not medical advice."
+
+User question: ${message}
+`;
+
+    // 🔮 Call Gemini API
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: prompt }]
+            }
+          ]
+        })
+      }
+    );
+
+    // ❌ Handle Gemini errors gracefully
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("Gemini API error:", errText);
+
+      if (response.status === 429) {
+        return {
+          statusCode: 200,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            reply:
+              "⚠️ AYUR-BOT is handling too many requests right now. Please wait a minute and try again. Meanwhile, simple Ayurvedic tip: sip warm turmeric water to soothe your body."
+          })
+        };
+      }
+
+      throw new Error(`Gemini API failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const reply =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "No reply generated.";
+
+    // ✅ Return AI reply to frontend
     return {
       statusCode: 200,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ reply })
     };
-
   } catch (err) {
     console.error("AYUR-BOT error:", err);
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        error: err.message || "Something went wrong in AYUR-BOT."
+      })
+    };
   }
 }
 
