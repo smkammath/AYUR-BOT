@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>AYUR-BOT — Wellness Assistant</title>
+  <style>
+    *{box-sizing:border-box}body{font-family:Inter,system-ui,Arial,sans-serif;background:#f5f7fa;margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center}
+    .card{width:95%;max-width:540px;background:#fff;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.08);overflow:hidden}
+    .hdr{background:linear-gradient(90deg,#2e7d32,#81c784);color:#fff;padding:16px;text-align:center;font-weight:700}
+    .chat{padding:16px;max-height:60vh;overflow:auto}
+    .msg{margin:8px 0;padding:12px;border-radius:10px;max-width:84%;white-space:pre-wrap}
+    .bot{background:#f2f2f2;align-self:flex-start}
+    .user{background:#dcedc8;align-self:flex-end;margin-left:auto}
+    .foot{display:flex;border-top:1px solid #eee}
+    input{flex:1;padding:12px;border:0;font-size:15px}
+    button{background:#2e7d32;color:#fff;border:0;padding:0 18px;cursor:pointer}
+    .loading{display:inline-block;width:14px;height:14px;border:3px solid #c8e6c9;border-top-color:#2e7d32;border-radius:50%;animation:spin .8s linear infinite;margin-right:8px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .small{font-size:12px;color:#666;text-align:center;padding:8px}
+    a{color:#2e7d32}
+  </style>
+</head>
+<body>
+  <div class="card" role="main" aria-label="AYUR-BOT">
+    <div class="hdr">🌿 AYUR-BOT — Wellness Assistant</div>
+    <div id="chat" class="chat">
+      <div class="msg bot">Hi — I'm AYUR-BOT 👋. Ask about daily fitness, diet, or Ayurvedic options. <strong>This is informational only.</strong></div>
+    </div>
+    <form id="form" class="foot" onsubmit="return false">
+      <input id="q" placeholder="Type your question (avoid personal IDs)..." autocomplete="off" />
+      <button id="send">Send</button>
+    </form>
+    <div class="small">Built with Netlify Functions & OpenAI · <a href="https://github.com/smkammath/AYUR-BOT" target="_blank">View Source</a></div>
+  </div>
+
+<script>
+const chat = document.getElementById('chat');
+const input = document.getElementById('q');
+const btn = document.getElementById('send');
+
+function append(text, cls='bot') {
+  const d = document.createElement('div');
+  d.className = 'msg ' + cls;
+  d.innerText = text;
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function showThinking() {
+  const d = document.createElement('div');
+  d.className = 'msg bot';
+  d.id = '__thinking';
+  d.innerHTML = '<span class="loading"></span>Thinking...';
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
+}
+function removeThinking() {
+  const t = document.getElementById('__thinking');
+  if (t) t.remove();
+}
+
+async function sendMessage(message) {
+  // show user
+  append(message, 'user');
+
+  // show temporary status to user
+  showThinking();
+
+  try {
+    const res = await fetch('/.netlify/functions/ayurbot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message })
+    });
+    const json = await res.json();
+    removeThinking();
+    if (json?.error) {
+      append('⚠️ Error: ' + json.error, 'bot');
+    } else {
+      // show reply (server may include HTML removed here)
+      append(json.reply || 'No reply generated.', 'bot');
+
+      // optional: if server returned places, show them (server already includes in reply)
+    }
+  } catch (err) {
+    removeThinking();
+    append('⚠️ Network error: ' + (err.message || err), 'bot');
+  }
+}
+
+btn.addEventListener('click', () => {
+  const v = input.value && input.value.trim();
+  if (!v) return;
+  input.value = '';
+  sendMessage(v);
+});
+
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); btn.click(); }
+});
+</script>
+</body>
+</html>
