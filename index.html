@@ -132,19 +132,23 @@
     <img src="DoshaAnalysis.jpg" alt="Dosha Balance" class="dosha-icon" />
   </div>
 
-  <script>
-    async function sendMessage() {
-      const input = document.getElementById("user-input");
-      const chatBox = document.getElementById("chat-box");
-      const userMsg = input.value.trim();
+ <script>
+  // 🌿 Function to send user's message to backend (Netlify Function)
+  async function sendMessage() {
+    const input = document.getElementById("user-input");
+    const chatBox = document.getElementById("chat-box");
+    const userMsg = input.value.trim();
 
-      if (!userMsg) return;
+    if (!userMsg) return;
 
-      chatBox.innerHTML += `<div class='user-msg'>${userMsg}</div>`;
-      input.value = "";
-      chatBox.innerHTML += `<div class='bot-msg'><i>🧘 AYUR-BOT is thinking...</i></div>`;
-      chatBox.scrollTop = chatBox.scrollHeight;
+    // Show user message in chat
+    chatBox.innerHTML += `<div class='user-msg'>${userMsg}</div>`;
+    input.value = "";
+    chatBox.innerHTML += `<div class='bot-msg'><i>🧘 AYUR-BOT is thinking...</i></div>`;
+    chatBox.scrollTop = chatBox.scrollHeight;
 
+    try {
+      // Send user input to Netlify Function
       const response = await fetch("/.netlify/functions/ayurbot", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -152,9 +156,54 @@
       });
 
       const data = await response.json();
-      document.querySelector(".bot-msg:last-child").innerHTML = data.reply || "⚠️ No reply generated.";
+      const reply = data.reply || "⚠️ No reply generated.";
+
+      // Show bot reply
+      document.querySelector(".bot-msg:last-child").innerHTML = reply;
       chatBox.scrollTop = chatBox.scrollHeight;
+
+      // Speak the reply softly
+      speakAyurveda(reply);
+
+    } catch (error) {
+      console.error("Error communicating with backend:", error);
+      document.querySelector(".bot-msg:last-child").innerHTML = "⚠️ There was an issue fetching response.";
     }
-  </script>
+  }
+
+  // 🔊 Function to handle calm, natural speech
+  function speakAyurveda(text) {
+    if (!("speechSynthesis" in window)) {
+      console.warn("Speech synthesis not supported in this browser.");
+      return;
+    }
+
+    // Cancel any existing speech to avoid overlap
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.9;   // Calm speed
+    utterance.pitch = 1;    // Neutral tone
+    utterance.volume = 0.9; // Soft, not loud
+    utterance.lang = "en-IN"; // Gentle Indian accent
+
+    // Try to pick a calm voice
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(v =>
+      v.name.toLowerCase().includes("zira") ||
+      v.name.toLowerCase().includes("neural") ||
+      v.name.toLowerCase().includes("female") ||
+      v.lang.includes("en-IN")
+    );
+
+    if (preferred) utterance.voice = preferred;
+
+    // Finally speak
+    window.speechSynthesis.speak(utterance);
+  }
+
+  // Ensure voices are loaded properly in browsers
+  window.speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
+</script>
 </body>
 </html>
