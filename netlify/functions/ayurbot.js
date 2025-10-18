@@ -1,71 +1,55 @@
 // netlify/functions/ayurbot.js
-// ✅ AYUR-BOT — Stable version for Google AI Studio (Free Gemini 1.5 Flash Key)
+// ✅ AYUR-BOT 🌿 powered by OpenRouter (instant & free-tier friendly)
 
 import fetch from "node-fetch";
 
 export async function handler(event) {
   try {
     const { message } = JSON.parse(event.body || "{}");
-    if (!message) {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: "Missing user input" }),
-      };
-    }
+    if (!message)
+      return { statusCode: 400, body: JSON.stringify({ error: "Missing message" }) };
 
-    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-    if (!GEMINI_API_KEY) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ error: "Missing GEMINI_API_KEY" }),
-      };
-    }
+    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+    if (!OPENROUTER_API_KEY)
+      return { statusCode: 500, body: JSON.stringify({ error: "Missing OPENROUTER_API_KEY" }) };
 
     const prompt = `
-You are AYUR-BOT 🌿 — an Ayurvedic wellness assistant.
-Provide helpful, safe, factual insights about:
-- Ayurveda, yoga, meditation, diet, and natural healing
-- Remedies for mild ailments (cold, acidity, stress, etc.)
-- Ayurvedic hospitals or wellness centers (only when asked)
-End with: "This is informational only — not medical advice."
+You are AYUR-BOT 🌿 — a friendly Ayurvedic wellness guide.
+Provide factual, safe, and respectful information about:
+• Yoga, diet, and daily fitness
+• Common Ayurvedic remedies for mild issues (cold, acidity, stress)
+• Names of well-known Ayurvedic hospitals or centers (India)
+Never prescribe drugs. End every answer with:
+"This is informational only — not medical advice."
 
 User question: ${message}
 `;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: prompt }],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.95,
-            maxOutputTokens: 400,
-          },
-          safetySettings: [
-            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
-            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
-            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
-            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
-          ],
-        }),
-      }
-    );
+    // 💡 Choose any OpenRouter model you prefer
+    const model = "google/gemini-1.5-flash"; // or "openai/gpt-3.5-turbo", "anthropic/claude-3-haiku"
 
-    const data = await response.json();
-    console.log("Gemini response:", JSON.stringify(data, null, 2));
+    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://ayurvidhya.netlify.app", // optional but recommended
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: "You are a helpful Ayurvedic wellness assistant." },
+          { role: "user", content: prompt }
+        ],
+      }),
+    });
+
+    const data = await res.json();
+    console.log("OpenRouter response:", JSON.stringify(data, null, 2));
 
     const reply =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "⚠️ No reply generated — please check your API setup.";
+      data?.choices?.[0]?.message?.content ||
+      "⚠️ No reply generated — please try again.";
 
     return {
       statusCode: 200,
@@ -74,9 +58,6 @@ User question: ${message}
     };
   } catch (err) {
     console.error("AYUR-BOT error:", err);
-    return {
-      statusCode: 500,
-      body: JSON.stringify({ error: err.message }),
-    };
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 }
