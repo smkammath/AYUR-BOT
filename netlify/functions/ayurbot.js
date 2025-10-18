@@ -21,7 +21,7 @@ exports.handler = async function (event) {
       };
     }
 
-    const model = "mistralai/mistral-7b"; // ✅ Stable and free model
+    const model = "mistralai/mistral-7b-instruct:free";
     const systemPrompt = `
 You are AYURFIT-BOT 🌿 — an Ayurvedic wellness guide.
 Provide calm, factual, and safe responses on:
