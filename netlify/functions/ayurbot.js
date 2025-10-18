@@ -1,5 +1,5 @@
 // netlify/functions/ayurbot.js
-// ✅ Compatible with Netlify CommonJS runtime + OpenRouter
+// ✅ CommonJS-compatible + verified model
 
 const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
@@ -21,7 +21,7 @@ exports.handler = async function (event) {
       };
     }
 
-    const model = "mistralai/mistral-7b-instruct:free";
+    const model = "mistralai/mistral-7b-instruct:free"; // ✅ verified free model
     const systemPrompt = `
 You are AYURFIT-BOT 🌿 — an Ayurvedic wellness guide.
 Provide calm, factual, and safe responses on:
@@ -36,7 +36,7 @@ Always end replies with: "This is informational only — not medical advice."
       headers: {
         "Authorization": `Bearer ${key}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://ayurfit-bot.netlify.app", // Required by OpenRouter
+        "HTTP-Referer": "https://ayurfit-bot.netlify.app", // required by OpenRouter
         "X-Title": "AYURFIT-BOT",
       },
       body: JSON.stringify({
