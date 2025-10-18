@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AyurVidhya — Wellness Assistant</title>
+  <title>AYURFIT-BOT — Wellness Assistant 🌿</title>
+
   <style>
     body {
       margin: 0;
@@ -25,6 +26,7 @@
       box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
       backdrop-filter: blur(12px);
       border: 1px solid rgba(255, 255, 255, 0.2);
+      position: relative;
     }
 
     .title {
@@ -68,6 +70,8 @@
       border-radius: 10px;
       border: none;
       outline: none;
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
     }
 
     button {
@@ -95,89 +99,93 @@
 
     .corner-img {
       position: absolute;
-      bottom: 20px;
-      right: 25px;
-      width: 100px;
-      opacity: 0.9;
+      bottom: 15px;
+      left: 15px;
+      width: 90px;
+      opacity: 0.8;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      z-index: 0;
+    }
+
+    .corner-img:hover {
+      transform: scale(1.1);
+      opacity: 1;
     }
 
     ::-webkit-scrollbar {
       width: 6px;
     }
+
     ::-webkit-scrollbar-thumb {
       background: rgba(255, 255, 255, 0.3);
       border-radius: 10px;
+    }
+
+    footer {
+      font-size: 0.75em;
+      text-align: center;
+      margin-top: 10px;
+      color: rgba(255, 255, 255, 0.7);
     }
   </style>
 </head>
 
 <body>
   <div class="chat-container">
-    <div class="title">🌿 Ayurvidhya — Wellness Assistant</div>
+    <div class="title">🌿 AYURFIT-BOT — Wellness Assistant</div>
 
     <div id="chat-box">
-      <div class="bot-msg">🪷 Namaste! I’m AyurVidhya. Ask about Ayurvedic health, diet, yoga, or doshas. This is informational only.</div>
+      <div class="bot-msg">🪷 Namaste! I’m AYURFIT-BOT. Ask about Ayurveda, yoga, diet, or try the Dosha Analyzer below.  
+      (This is informational only — not medical advice.)</div>
     </div>
 
-    <input id="user-input" type="text" placeholder="Type your question..." />
-    <button onclick="sendMessage()">ASK</button>
+    <div style="display:flex; gap:8px;">
+      <input id="user-input" type="text" placeholder="Type your question..." />
+      <button onclick="sendMessage()">Send</button>
+    </div>
 
     <button id="dosha-btn" onclick="startDoshaQuiz()">🧘 Analyze My Dosha</button>
 
-    <p style="text-align:center; font-size:0.8em; opacity:0.8;">STAY FIT - STAY HAPPY</p>
+    <footer>Built with 🌿 Ayurveda × AI × Netlify</footer>
+    <img src="DoshaAnalysis.jpg" class="corner-img" alt="Dosha Illustration" />
   </div>
 
-  <img src="DoshaAnalysis.jpg" class="corner-img" alt="Dosha Illustration" />
-
   <script>
-    // 💬 Send message to backend (OpenRouter)
+    // 💬 Send message to backend (OpenRouter or Local Data)
     async function sendMessage() {
       const input = document.getElementById("user-input");
       const chatBox = document.getElementById("chat-box");
       const userMsg = input.value.trim();
       if (!userMsg) return;
 
+      // Display user message
       chatBox.innerHTML += `<div class='user-msg'>${userMsg}</div>`;
       input.value = "";
-      chatBox.innerHTML += `<div class='bot-msg'><i>🧘 Thinking...</i></div>`;
+      chatBox.innerHTML += `<div class='bot-msg'><i>🧘 AYUR-BOT is thinking...</i></div>`;
       chatBox.scrollTop = chatBox.scrollHeight;
 
-      const response = await fetch("/.netlify/functions/ayurbot", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMsg }),
-      });
+      try {
+        const response = await fetch("/.netlify/functions/ayurbot", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: userMsg }),
+        });
 
-      const data = await response.json();
-      const reply = data.reply || "⚠️ No reply generated.";
-
-      document.querySelector(".bot-msg:last-child").innerHTML = reply;
-      chatBox.scrollTop = chatBox.scrollHeight;
-
-      // Speak softly
-      speakAyurveda(reply);
+        const data = await response.json();
+        const reply = data.reply || "⚠️ No reply generated.";
+        document.querySelector(".bot-msg:last-child").innerHTML = reply;
+        chatBox.scrollTop = chatBox.scrollHeight;
+      } catch (error) {
+        console.error("Backend Error:", error);
+        document.querySelector(".bot-msg:last-child").innerHTML =
+          "⚠️ Error: Unable to connect. Please try again later.";
+      }
     }
 
-    // 🔊 Calm speech synthesis
-    function speakAyurveda(text) {
-      if (!("speechSynthesis" in window)) return;
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.9;
-      utterance.pitch = 1;
-      utterance.volume = 0.9;
-      utterance.lang = "en-IN";
-      const voices = speechSynthesis.getVoices();
-      const preferred = voices.find(v => v.lang.includes("en-IN"));
-      if (preferred) utterance.voice = preferred;
-      window.speechSynthesis.speak(utterance);
-    }
-    window.speechSynthesis.onvoiceschanged = () => speechSynthesis.getVoices();
-
-    // 🧘 DOSHA QUIZ
+    // 🧘 DOSHA QUIZ — 3-step personality & body analysis
     function startDoshaQuiz() {
       const questions = [
-        { q: "How is your body type?", v: "Thin & light", p: "Medium, muscular", k: "Heavy & steady" },
+        { q: "How is your body type?", v: "Thin & light", p: "Medium & muscular", k: "Heavy & steady" },
         { q: "How’s your skin?", v: "Dry & rough", p: "Oily & warm", k: "Soft & pale" },
         { q: "What’s your digestion like?", v: "Irregular", p: "Strong", k: "Slow" },
       ];
@@ -186,20 +194,22 @@
 
       (async function ask(i = 0) {
         if (i >= questions.length) {
-          let dominant = Object.keys(scores).reduce((a, b) => (scores[a] > scores[b] ? a : b));
-          const msg = `🧘 You are likely *${dominant.toUpperCase()}* type. 
-          Vata = movement, Pitta = fire, Kapha = stability. 
-          Would you like Ayurvedic recommendations for your dosha?`;
+          const dominant = Object.keys(scores).reduce((a, b) =>
+            scores[a] > scores[b] ? a : b
+          );
+          const msg = `🧘 You are likely *${dominant.toUpperCase()}* type.  
+🌬️ Vata = Movement & Creativity  
+🔥 Pitta = Fire & Metabolism  
+💧 Kapha = Stability & Calm  
+
+Ask me how to balance your ${dominant} dosha with Ayurvedic lifestyle tips.`;
+
           document.getElementById("chat-box").innerHTML += `<div class='bot-msg'>${msg}</div>`;
-          speakAyurveda(msg);
           return;
         }
 
         const q = questions[i];
-        const choice = prompt(
-          `${q.q}\n1️⃣ ${q.v}\n2️⃣ ${q.p}\n3️⃣ ${q.k}`
-        );
-
+        const choice = prompt(`${q.q}\n1️⃣ ${q.v}\n2️⃣ ${q.p}\n3️⃣ ${q.k}`);
         if (choice === "1") scores.vata++;
         else if (choice === "2") scores.pitta++;
         else if (choice === "3") scores.kapha++;
