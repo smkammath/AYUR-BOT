@@ -1,5 +1,5 @@
 // netlify/functions/ayurbot.js
-// ✅ AYUR-BOT — Google Gemini REST API version (for Maps/AI Studio keys)
+// ✅ AYUR-BOT — Stable version for Google AI Studio (Free Gemini 1.5 Flash Key)
 
 import fetch from "node-fetch";
 
@@ -9,7 +9,7 @@ export async function handler(event) {
     if (!message) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: "Missing message" }),
+        body: JSON.stringify({ error: "Missing user input" }),
       };
     }
 
@@ -22,38 +22,50 @@ export async function handler(event) {
     }
 
     const prompt = `
-You are AYUR-BOT 🌿, an Ayurvedic wellness assistant from India.
-Offer safe, traditional, and practical suggestions related to:
-- daily fitness, yoga, and diet
-- Ayurvedic remedies for mild conditions (cold, acidity, stress, etc.)
-- names of known Ayurvedic hospitals or centers if asked
-Never prescribe medicine. Always end with:
-"This is informational only — not medical advice."
+You are AYUR-BOT 🌿 — an Ayurvedic wellness assistant.
+Provide helpful, safe, factual insights about:
+- Ayurveda, yoga, meditation, diet, and natural healing
+- Remedies for mild ailments (cold, acidity, stress, etc.)
+- Ayurvedic hospitals or wellness centers (only when asked)
+End with: "This is informational only — not medical advice."
 
 User question: ${message}
 `;
 
-    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateText?key=${GEMINI_API_KEY}`;
-
-    const response = await fetch(GEMINI_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        prompt: {
-          text: prompt,
-        },
-        temperature: 0.7,
-        maxOutputTokens: 256,
-      }),
-    });
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: prompt }],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.7,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 400,
+          },
+          safetySettings: [
+            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+          ],
+        }),
+      }
+    );
 
     const data = await response.json();
     console.log("Gemini response:", JSON.stringify(data, null, 2));
 
     const reply =
-      data?.candidates?.[0]?.output || // REST structure
-      data?.candidates?.[0]?.content?.parts?.[0]?.text || // fallback
-      "⚠️ No reply generated — check API quota or project permissions.";
+      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "⚠️ No reply generated — please check your API setup.";
 
     return {
       statusCode: 200,
