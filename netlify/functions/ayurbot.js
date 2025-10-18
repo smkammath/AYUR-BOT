@@ -1,5 +1,6 @@
 // netlify/functions/ayurbot.js
-// 🌿 AYURFIT-BOT — Integrated Local Ayurveda + OpenRouter AI
+// ✅ AYUR VIDHYA — AI + Ayurveda Integrated Chatbot
+// Built for Netlify Functions using OpenRouter + local data blend
 
 const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
@@ -9,7 +10,7 @@ exports.handler = async function (event) {
     if (!message) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: "Missing user input" }),
+        body: JSON.stringify({ error: "Missing user message" }),
       };
     }
 
@@ -17,89 +18,99 @@ exports.handler = async function (event) {
     if (!OPENROUTER_API_KEY) {
       return {
         statusCode: 500,
-        body: JSON.stringify({ error: "Missing OPENROUTER_API_KEY" }),
+        body: JSON.stringify({ error: "Missing OpenRouter API key in environment" }),
       };
     }
 
-    // 🌿 Local Ayurvedic dataset for Indian accuracy
-    const localAyurvedaData = {
+    // 🌿 Local Ayurvedic data — quick access before AI
+    const localData = {
+      stress: {
+        herbs: ["Brahmi", "Ashwagandha", "Jatamansi"],
+        yoga: ["Shavasana", "Nadi Shodhana", "Viparita Karani"],
+        diet: "Avoid caffeine and processed foods. Include warm milk with nutmeg, and fresh fruits like bananas.",
+      },
       acidity: {
-        herbs: ["Triphala", "Amla", "Licorice (Yashtimadhu)"],
-        diet: "Avoid spicy, fried foods. Eat warm, light meals with ghee, rice, and moong dal.",
-        yoga: ["Vajrasana", "Pavanamuktasana", "Bhujangasana"],
+        herbs: ["Amla", "Licorice (Yashtimadhu)", "Triphala"],
+        yoga: ["Vajrasana", "Pavanamuktasana"],
+        diet: "Avoid spicy foods, eat small light meals, drink warm water with honey.",
       },
       cold: {
-        herbs: ["Tulsi", "Ginger", "Black Pepper", "Turmeric"],
-        diet: "Drink warm water, soups, and herbal tea with honey. Avoid cold or sour foods.",
-        yoga: ["Anulom Vilom", "Kapalbhati Pranayama"],
+        herbs: ["Tulsi", "Ginger", "Turmeric", "Black Pepper"],
+        yoga: ["Anulom Vilom", "Kapalbhati"],
+        diet: "Avoid cold drinks and yogurt; drink herbal teas and soups.",
       },
       "joint pain": {
-        herbs: ["Ashwagandha", "Shallaki", "Turmeric", "Guggul"],
-        diet: "Take warm milk with turmeric; avoid cold and sour items.",
-        yoga: ["Trikonasana", "Ardha Matsyendrasana", "Vrikshasana"],
+        herbs: ["Guggul", "Turmeric", "Ashwagandha"],
+        yoga: ["Vrikshasana", "Trikonasana", "Ardha Matsyendrasana"],
+        diet: "Take warm milk with turmeric; avoid sour foods.",
       },
     };
 
-    const lowerMsg = message.toLowerCase();
-    const match = Object.keys(localAyurvedaData).find(k => lowerMsg.includes(k));
+    const userQuery = message.toLowerCase();
+    const match = Object.keys(localData).find(k => userQuery.includes(k));
 
-    // ✅ If the question matches local data, return that instantly
     if (match) {
-      const info = localAyurvedaData[match];
+      const info = localData[match];
       const reply = `
-🪷 Ayurvedic Suggestions for **${match.toUpperCase()}**:
-🌿 **Herbs:** ${info.herbs.join(", ")}  
-🥗 **Diet:** ${info.diet}  
-🧘 **Yoga:** ${info.yoga.join(", ")}  
+🪷 **Ayurvedic Tips for ${match.toUpperCase()}**  
+🌿 Herbs: ${info.herbs.join(", ")}  
+🧘 Yoga: ${info.yoga.join(", ")}  
+🥗 Diet: ${info.diet}  
 
-This is informational only — not medical advice.
+✨ Stay balanced and peaceful. (Informational only — not medical advice.)
 `;
       return {
         statusCode: 200,
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ reply }),
       };
     }
 
-    // 🧠 If no local match, fallback to OpenRouter AI
-    const systemPrompt = `
-You are AYURFIT-BOT 🌿 — an Ayurvedic wellness assistant. 
-Provide calm, factual advice about Ayurveda, diet, yoga, and herbal remedies. 
-Always end with: "This is informational only — not medical advice."
-`;
-
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    // 🌐 Fallback — use OpenRouter AI
+    const apiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://ayurfit-bot.netlify.app",
-        "X-Title": "AYURFIT-BOT",
+        "HTTP-Referer": "https://myayurveda.netlify.app",
+        "X-Title": "AYUR VIDHYA",
       },
       body: JSON.stringify({
-        model: "mistralai/mistral-7b-instruct:free", // ✅ stable free model
+        model: "mistralai/mistral-7b-instruct", // ✅ valid model name
         messages: [
-          { role: "system", content: systemPrompt },
+          {
+            role: "system",
+            content: `
+You are AYUR VIDHYA 🌿 — a calm Ayurvedic wellness assistant.
+Provide clear, compassionate, and factual wellness advice based on Ayurveda.
+Include lifestyle, yoga, diet, and herbal guidance.
+Always end with: “This is informational only — not medical advice.”
+`,
+          },
           { role: "user", content: message },
         ],
       }),
     });
 
-    const data = await res.json();
-    console.log("OpenRouter API response:", JSON.stringify(data, null, 2));
+    const data = await apiResponse.json();
+
+    if (data.error) {
+      console.error("OpenRouter API Error:", data.error);
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ reply: `⚠️ API Error: ${data.error.message}` }),
+      };
+    }
 
     const reply =
       data?.choices?.[0]?.message?.content ||
-      data?.error?.message ||
-      "⚠️ No reply generated. Please check your API setup.";
+      "⚠️ No reply generated. Please try again later.";
 
     return {
       statusCode: 200,
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ reply }),
     };
   } catch (err) {
-    console.error("AYURFIT-BOT Error:", err);
+    console.error("Function Error:", err);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: err.message }),
