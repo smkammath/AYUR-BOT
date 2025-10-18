@@ -1,5 +1,5 @@
 // netlify/functions/ayurbot.js
-// ✅ AYUR-BOT — Final Verified Build for Google AI Studio (v1beta, 2025)
+// ✅ AYUR-BOT — Google Gemini REST API version (for Maps/AI Studio keys)
 
 import fetch from "node-fetch";
 
@@ -9,7 +9,7 @@ export async function handler(event) {
     if (!message) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: "Missing message input." }),
+        body: JSON.stringify({ error: "Missing message" }),
       };
     }
 
@@ -17,45 +17,43 @@ export async function handler(event) {
     if (!GEMINI_API_KEY) {
       return {
         statusCode: 500,
-        body: JSON.stringify({ error: "Missing GEMINI_API_KEY in env." }),
+        body: JSON.stringify({ error: "Missing GEMINI_API_KEY" }),
       };
     }
 
     const prompt = `
-You are AYUR-BOT 🌿, a friendly Ayurvedic wellness assistant from India.
-Give safe, natural, and factual suggestions for:
-- fitness, yoga, diet, and Ayurvedic routines
-- remedies for mild ailments (cold, acidity, stress, etc.)
-- well-known Ayurvedic hospitals or centers (only if asked)
-Avoid medical prescriptions.
-Always end with: "This is informational only — not medical advice."
+You are AYUR-BOT 🌿, an Ayurvedic wellness assistant from India.
+Offer safe, traditional, and practical suggestions related to:
+- daily fitness, yoga, and diet
+- Ayurvedic remedies for mild conditions (cold, acidity, stress, etc.)
+- names of known Ayurvedic hospitals or centers if asked
+Never prescribe medicine. Always end with:
+"This is informational only — not medical advice."
 
 User question: ${message}
 `;
 
-    // ✅ Correct endpoint for AI Studio free-tier keys (Gemini 1.5 Flash)
-    const GEMINI_URL =
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=" +
-      GEMINI_API_KEY;
+    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateText?key=${GEMINI_API_KEY}`;
 
     const response = await fetch(GEMINI_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: prompt }],
-          },
-        ],
+        prompt: {
+          text: prompt,
+        },
+        temperature: 0.7,
+        maxOutputTokens: 256,
       }),
     });
 
     const data = await response.json();
-    console.log("Gemini response:", JSON.stringify(data, null, 2)); // debug log
+    console.log("Gemini response:", JSON.stringify(data, null, 2));
 
     const reply =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "⚠️ AYUR-BOT couldn’t generate a reply. Please try rephrasing.";
+      data?.candidates?.[0]?.output || // REST structure
+      data?.candidates?.[0]?.content?.parts?.[0]?.text || // fallback
+      "⚠️ No reply generated — check API quota or project permissions.";
 
     return {
       statusCode: 200,
@@ -66,9 +64,7 @@ User question: ${message}
     console.error("AYUR-BOT error:", err);
     return {
       statusCode: 500,
-      body: JSON.stringify({
-        error: err.message || "Unexpected server error in AYUR-BOT.",
-      }),
+      body: JSON.stringify({ error: err.message }),
     };
   }
 }
